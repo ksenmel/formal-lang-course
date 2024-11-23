@@ -26,7 +26,9 @@ def matrix_based_cfpq(
     for u, v, label in graph.edges.data("label"):
         for prod in cfg.productions:
             if len(prod.body) == 1 and (prod.body[0].value == label):
-                decomposition[prod.head][node_to_idx_mapping[u], node_to_idx_mapping[v]] = True
+                decomposition[prod.head][
+                    node_to_idx_mapping[u], node_to_idx_mapping[v]
+                ] = True
 
     for var in nullable:
         decomposition[var].setdiag(True)
@@ -38,7 +40,9 @@ def matrix_based_cfpq(
         for prod in cfg.productions:
             if len(prod.body) == 2:
                 head, A, B = prod.head, prod.body[0], prod.body[1]
-                head_matrix = decomposition[head] + (decomposition[A] @ decomposition[B])
+                head_matrix = decomposition[head] + (
+                    decomposition[A] @ decomposition[B]
+                )
                 if (decomposition[head] != head_matrix).nnz:
                     added = True
                     decomposition[head] = head_matrix
