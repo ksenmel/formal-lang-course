@@ -32,6 +32,17 @@ def program_to_tree(program: str) -> tuple[ParserRuleContext, bool]:
     return tree, True
 
 
+def nodes_count(tree: ParserRuleContext) -> int:
+    if not tree.children:
+        return 1
+    else:
+        return 1 + sum(
+            nodes_count(child)
+            for child in tree.children
+            if not isinstance(child, TerminalNode)
+        )
+
+
 def tree_to_program(tree: ParserRuleContext) -> str:
     return "".join(
         child.getText() + " "
