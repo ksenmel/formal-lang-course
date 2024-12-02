@@ -22,8 +22,11 @@ set_expr : L_SQ_BR expr (COMMA expr)* R_SQ_BR ;
 edge_expr : L_BR expr COMMA expr COMMA expr R_BR ;
 
 regexp: term ('|' term)*;
+
 term: factor (('.' | '&') factor)*;
+
 factor: primary ('^' range)*;
+
 primary: CHAR | VAR | '(' regexp ')';
 
 range : L_SQ_BR NUM ELLIPSIS NUM? R_SQ_BR ;
