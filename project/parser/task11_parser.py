@@ -1,4 +1,11 @@
-from antlr4 import InputStream, CommonTokenStream, ParserRuleContext, TerminalNode, ParseTreeListener, ParseTreeWalker
+from antlr4 import (
+    InputStream,
+    CommonTokenStream,
+    ParserRuleContext,
+    TerminalNode,
+    ParseTreeListener,
+    ParseTreeWalker,
+)
 from antlr4.error.ErrorListener import ErrorListener
 
 from project.parser.GQLLexer import GQLLexer
