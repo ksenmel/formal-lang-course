@@ -10,10 +10,10 @@ from project.task3 import AdjacencyMatrixFA, intersect_automata
 
 
 def tensor_based_cfpq(
-        rsm: RecursiveAutomaton,
-        graph: DiGraph,
-        start_nodes: Set[int] = None,
-        final_nodes: Set[int] = None,
+    rsm: RecursiveAutomaton,
+    graph: DiGraph,
+    start_nodes: Set[int] = None,
+    final_nodes: Set[int] = None,
 ) -> Set[Tuple[int, int]]:
     rsm_nfa = rsm_to_nfa(rsm)
     graph_nfa = graph_to_nfa(graph, start_nodes, final_nodes)
@@ -28,12 +28,13 @@ def tensor_based_cfpq(
         intersection = intersect_automata(rsm_adj, graph_adj)
         transitive_closure = intersection.transitive_closure()
 
-        update_adjacency_matrix(
-            transitive_closure, intersection, rsm, graph_adj
-        )
+        update_adjacency_matrix(transitive_closure, intersection, rsm, graph_adj)
 
         last_nnz = current_nnz
-        current_nnz = sum(graph_adj.adj_matrix[nonterminal].nnz for nonterminal in graph_adj.adj_matrix)
+        current_nnz = sum(
+            graph_adj.adj_matrix[nonterminal].nnz
+            for nonterminal in graph_adj.adj_matrix
+        )
 
     return {
         (st, fn)
@@ -48,7 +49,9 @@ def tensor_based_cfpq(
 def initialize_graph_adj(graph_adj, rsm, num_states):
     for nonterminal in rsm.boxes:
         if nonterminal not in graph_adj.adj_matrix:
-            graph_adj.adj_matrix[nonterminal] = csr_array((num_states, num_states), dtype=bool)
+            graph_adj.adj_matrix[nonterminal] = csr_array(
+                (num_states, num_states), dtype=bool
+            )
 
 
 def update_adjacency_matrix(transitive_closure, intersection, rsm, graph_adj):
@@ -58,7 +61,9 @@ def update_adjacency_matrix(transitive_closure, intersection, rsm, graph_adj):
         (row_symbol, row_rsm_state), row_graph_state = row_state
         (col_symbol, col_rsm_state), col_graph_state = col_state
 
-        if is_valid_transition(rsm, row_symbol, col_symbol, row_rsm_state, col_rsm_state):
+        if is_valid_transition(
+            rsm, row_symbol, col_symbol, row_rsm_state, col_rsm_state
+        ):
             row_graph_id = graph_adj.state_index[row_graph_state]
             col_graph_id = graph_adj.state_index[col_graph_state]
             graph_adj.adj_matrix[row_symbol][row_graph_id, col_graph_id] = True

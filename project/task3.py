@@ -4,11 +4,7 @@ from typing import Iterable
 from scipy.sparse import csr_matrix, kron, csgraph
 import numpy as np
 
-from project.task2_fa import (
-    NondeterministicFiniteAutomaton,
-    regex_to_dfa,
-    graph_to_nfa
-)
+from project.task2_fa import NondeterministicFiniteAutomaton, regex_to_dfa, graph_to_nfa
 
 
 class AdjacencyMatrixFA:
@@ -47,20 +43,18 @@ class AdjacencyMatrixFA:
         return False
 
     def transitive_closure(self):
-        init_matrix = csr_matrix((self.number_of_states, self.number_of_states), dtype=bool)
+        init_matrix = csr_matrix(
+            (self.number_of_states, self.number_of_states), dtype=bool
+        )
         init_matrix.setdiag(True)
 
         if not self.adj_matrix:
             return init_matrix
 
-        reach = csr_matrix(
-            (self.number_of_states, self.number_of_states), dtype=bool
-        )
+        reach = csr_matrix((self.number_of_states, self.number_of_states), dtype=bool)
         for matrix in self.adj_matrix.values():
             reach += matrix
-        dist_matrix = csgraph.floyd_warshall(
-            reach, directed=True, unweighted=True
-        )
+        dist_matrix = csgraph.floyd_warshall(reach, directed=True, unweighted=True)
         reach_matrix = dist_matrix < np.inf
 
         return reach_matrix
@@ -86,10 +80,14 @@ def intersect_automata(
 
     for st1 in mfa1.state_index:
         for st2 in mfa2.state_index:
-            index = mfa1.state_index[st1] * mfa2.number_of_states + mfa2.state_index[st2]
+            index = (
+                mfa1.state_index[st1] * mfa2.number_of_states + mfa2.state_index[st2]
+            )
             intersection.state_index[(st1, st2)] = index
 
-    intersection.index_state = {idx: state for state, idx in intersection.state_index.items()}
+    intersection.index_state = {
+        idx: state for state, idx in intersection.state_index.items()
+    }
 
     intersection.start_state_indices = set()
 
