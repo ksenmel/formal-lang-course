@@ -13,7 +13,7 @@ def ms_bfs_based_rpq(
     dfa_adj_matrix = AdjacencyMatrixFA(regex_to_dfa(regex))
     nfa_adj_matrix = AdjacencyMatrixFA(graph_to_nfa(graph, start_nodes, final_nodes))
 
-    nfa_st_ids = {i: state for i, state in enumerate(nfa_adj_matrix.states)}
+    nfa_st_ids = {i: state for i, state in enumerate(nfa_adj_matrix.state_index)}
 
     labels = dfa_adj_matrix.adj_matrix.keys() & nfa_adj_matrix.adj_matrix.keys()
 
@@ -22,12 +22,12 @@ def ms_bfs_based_rpq(
     start_states = [
         (dfa_st, nfa_st)
         for dfa_st, nfa_st in product(
-            dfa_adj_matrix.start_states, nfa_adj_matrix.start_states
+            dfa_adj_matrix.start_state_indices, nfa_adj_matrix.start_state_indices
         )
     ]
 
-    k = len(dfa_adj_matrix.states.keys())
-    m = len(nfa_adj_matrix.states.keys())
+    k = len(dfa_adj_matrix.state_index.keys())
+    m = len(nfa_adj_matrix.state_index.keys())
 
     def init_front():
         matrices = []
@@ -61,12 +61,12 @@ def ms_bfs_based_rpq(
 
     res = set()
 
-    for final_dfa in dfa_adj_matrix.final_states:
-        for i, start in enumerate(nfa_adj_matrix.start_states):
+    for final_dfa in dfa_adj_matrix.final_state_indices:
+        for i, start in enumerate(nfa_adj_matrix.start_state_indices):
             reached_states = visited[k * i : k * (i + 1)].getrow(final_dfa).indices
 
             for reached in reached_states:
-                if reached in nfa_adj_matrix.final_states:
+                if reached in nfa_adj_matrix.final_state_indices:
                     res.add((nfa_st_ids[start], nfa_st_ids[reached]))
 
     return res
