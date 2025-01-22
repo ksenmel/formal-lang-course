@@ -7,10 +7,10 @@ import networkx as nx
 
 
 def gll_based_cfpq(
-        rsm: rsa.RecursiveAutomaton,
-        graph: nx.DiGraph,
-        start_nodes: Set[int],
-        final_nodes: Set[int],
+    rsm: rsa.RecursiveAutomaton,
+    graph: nx.DiGraph,
+    start_nodes: Set[int],
+    final_nodes: Set[int],
 ) -> Set[Tuple[int, int]]:
     s = GllSolver(rsm, graph)
     return s.solve_reach(start_nodes, final_nodes)
@@ -82,9 +82,9 @@ class SPPFNode:
 
 class GllSolver:
     def __init__(
-            self,
-            rsm: rsa.RecursiveAutomaton,
-            graph: nx.DiGraph,
+        self,
+        rsm: rsa.RecursiveAutomaton,
+        graph: nx.DiGraph,
     ):
         self.rsm = rsm
         self.graph = graph
@@ -101,7 +101,6 @@ class GllSolver:
         self.init_rsm_data(rsm)
 
     def init_graph_data(self, graph: nx.DiGraph):
-
         for node in graph.nodes():
             self.nodes2edges[node] = {}
 
@@ -153,7 +152,7 @@ class GllSolver:
         self.unprocessed.update(new_nodes)
 
     def filter_poped_nodes(
-            self, snodes: Set[SPPFNode], prev_snode: SPPFNode
+        self, snodes: Set[SPPFNode], prev_snode: SPPFNode
     ) -> Tuple[Set[SPPFNode], Set[Tuple[int, int]]]:
         node_res_set = set()
         start_fin_res_set = set()
@@ -222,9 +221,9 @@ class GllSolver:
         return res_set
 
     def solve_reach(
-            self,
-            from_n: Set[int],
-            nodes_end: Set[int],
+        self,
+        from_n: Set[int],
+        nodes_end: Set[int],
     ) -> Set[Tuple[int, int]]:
         achievable_set = set()
         for snode in from_n:
