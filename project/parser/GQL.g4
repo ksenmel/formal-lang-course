@@ -21,13 +21,13 @@ set_expr : L_SQ_BR expr (COMMA expr)* R_SQ_BR ;
 
 edge_expr : L_BR expr COMMA expr COMMA expr R_BR ;
 
-regexp: term (PIPE term)*;
-
-term: factor ((DOT | AMPERSAND) factor)*;
-
-factor: primary (CIRCUMFLEX range)*;
-
-primary: char | var | L_BR regexp R_BR;
+regexp: char
+        | var
+        | L_BR regexp R_BR
+        | regexp CIRCUMFLEX range
+        | regexp DOT regexp
+        | regexp PIPE regexp
+        | regexp AMPERSAND regexp;
 
 range : L_SQ_BR num ELLIPSIS num? R_SQ_BR ;
 
