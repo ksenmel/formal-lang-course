@@ -72,6 +72,17 @@ class MyVisitor(GQLVisitor):
 
         return values
 
+    def visitRange(self, ctx: GQLParser.RangeContext):
+        # Начальное число (обязательно)
+        start = int(ctx.num(0))
+
+        if ctx.num(1):
+            end = int(ctx.num(1))
+            return range(start, end)
+            # return range(start, end + 1)???
+        else:
+            return range(start, float('inf'))
+
 
 def interpret(code: str):
     tree = program_to_tree(code)
