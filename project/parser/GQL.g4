@@ -7,33 +7,37 @@ stmt: declare
     | add
     | remove;
 
-declare : LET VAR IS GRAPH ;
+declare : LET var IS GRAPH ;
 
-bind : LET VAR EQUAL expr ;
+bind : LET var EQUAL expr ;
 
-remove : REMOVE (VERTEX | EDGE | VERTICES) expr FROM VAR ;
+remove : REMOVE (VERTEX | EDGE | VERTICES) expr FROM var ;
 
-add : ADD (VERTEX | EDGE) expr TO VAR ;
+add : ADD (VERTEX | EDGE) expr TO var ;
 
-expr : NUM | CHAR | VAR | edge_expr | set_expr | regexp | select ;
+expr : num | char | var | edge_expr | set_expr | regexp | select ;
 
 set_expr : L_SQ_BR expr (COMMA expr)* R_SQ_BR ;
 
 edge_expr : L_BR expr COMMA expr COMMA expr R_BR ;
 
-regexp: term ('|' term)*;
+regexp: char
+        | var
+        | L_BR regexp R_BR
+        | regexp CIRCUMFLEX range
+        | regexp DOT regexp
+        | regexp PIPE regexp
+        | regexp AMPERSAND regexp;
 
-term: factor (('.' | '&') factor)*;
+range : L_SQ_BR num ELLIPSIS num? R_SQ_BR ;
 
-factor: primary ('^' range)*;
+select : v_filter? v_filter? RETURN var (COMMA var)? WHERE var REACHABLE FROM var IN var BY expr ;
 
-primary: CHAR | VAR | '(' regexp ')';
+v_filter : FOR var IN expr ;
 
-range : L_SQ_BR NUM ELLIPSIS NUM? R_SQ_BR ;
-
-select : v_filter? v_filter? RETURN VAR (COMMA VAR)? WHERE VAR REACHABLE FROM VAR IN VAR BY expr ;
-
-v_filter : FOR VAR IN expr ;
+num: NUM ;
+char: CHAR;
+var: VAR ;
 
 LET:            'let' ;
 IS:             'is' ;
