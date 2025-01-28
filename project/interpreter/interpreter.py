@@ -2,7 +2,7 @@ from antlr4.CommonTokenStream import CommonTokenStream
 from antlr4.InputStream import InputStream
 
 from project.interpreter.visitor import MyVisitor
-from project.typeinference.infer import GQLInfer
+from project.typecheck.typecheck import GQLInfer
 from project.parser.GQLLexer import GQLLexer
 from project.parser.GQLParser import GQLParser
 
