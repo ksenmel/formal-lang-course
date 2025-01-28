@@ -16,8 +16,13 @@ from project.interpreter.utils import (
 )
 from project.task8_tensors import tensor_based_cfpq
 
+from project.interpreter.exceptions import (
+    VariableNotFoundException,
+    RemoveGlobalScopeException,
+)
 
-class Environment:
+
+class Env:
     def __init__(self):
         self.env = [{}]
 
@@ -31,20 +36,20 @@ class Environment:
         if len(self.env) > 1:
             self.env.pop()
         else:
-            raise Exception("Cannot remove the global scope.")
+            raise RemoveGlobalScopeException
 
     def find(self, name: str):
         for scope in reversed(self.env):
             if name in scope:
                 return scope[name]
-        raise Exception(f"Unknown variable: {name}")
+        raise VariableNotFoundException
 
 
-def _add_edge(graph, expr_val):
+def add_edge(graph, expr_val):
     graph.add_edge(expr_val[0], expr_val[2], label=expr_val[1])
 
 
-def _add_node(graph, expr_val):
+def add_node(graph, expr_val):
     graph.add_node(expr_val)
 
 
@@ -54,7 +59,7 @@ def get_varname(ctx: GQLParser.VarContext):
 
 class MyVisitor(GQLVisitor):
     def __init__(self):
-        self.env = Environment()
+        self.env = Env()
         self.query = {}
         self._query_done = False
 
@@ -122,39 +127,6 @@ class MyVisitor(GQLVisitor):
         if ctx.AMPERSAND():
             return intersect(left, right)
 
-    def visitSelect(self, ctx: GQLParser.SelectContext):
-        filter1 = self.visitV_filter(ctx.v_filter(0))
-        filter2 = self.visitV_filter(ctx.v_filter(1))
-
-        var_list = ctx.var()
-        graph = self.visitVar(var_list[-1])
-
-        nfa_dict = {k: v for k, v in self.env.env[0].items() if isinstance(v, EpsilonNFA)}
-        query = build_rsm(self._nfa_from_expr(ctx.expr()), nfa_dict)
-
-        start_var = get_varname(var_list[-2])
-        final_var = get_varname(var_list[-3])
-
-        start_nodes = filter1[1] if start_var == filter1[0] else filter2[1]
-        final_nodes = filter2[1] if final_var == filter2[0] else filter1[1]
-
-        result = tensor_based_cfpq(query, graph, start_nodes, final_nodes)
-
-        ret_var1 = var_list[0].getText()
-        ret_var2 = var_list[1].getText() if len(var_list) > 1 else None
-        start_name = var_list[-2].getText()
-        final_name = var_list[-3].getText()
-
-        if ret_var1 == start_name and not ret_var2:
-            output = {r[0] for r in result}
-        elif ret_var1 == final_name and not ret_var2:
-            output = {r[1] for r in result}
-        else:
-            output = result
-
-        self._query_done = True
-        return output
-
     def visitV_filter(self, ctx: GQLParser.V_filterContext):
         return ctx.var().getText(), self.visitExpr(ctx.expr())
 
@@ -163,9 +135,9 @@ class MyVisitor(GQLVisitor):
         expr_val = self.visitExpr(ctx.expr())
 
         if ctx.EDGE():
-            _add_edge(graph, expr_val)
+            add_edge(graph, expr_val)
         else:
-            _add_node(graph, expr_val)
+            add_node(graph, expr_val)
 
     def visitRemove(self, ctx):
         graph = self.visitVar(ctx.var())
@@ -173,10 +145,8 @@ class MyVisitor(GQLVisitor):
 
         if ctx.EDGE():
             graph.remove_edge(expr_val[0], expr_val[2])
-        elif ctx.VERTEX():
-            graph.remove_node(expr_val)
         else:
-            [graph.remove_node(v) for v in expr_val]
+            graph.remove_node(expr_val)
 
     def visitSet_expr(self, ctx: GQLParser.Set_exprContext):
         values = set()
@@ -208,6 +178,39 @@ class MyVisitor(GQLVisitor):
 
     def visitNum(self, ctx: GQLParser.NumContext):
         return int(ctx.NUM().getText())
+
+    def visitSelect(self, ctx: GQLParser.SelectContext):
+        filter1 = self.visitV_filter(ctx.v_filter(0))
+        filter2 = self.visitV_filter(ctx.v_filter(1))
+
+        if not filter1 or not filter2:
+            raise Exception("Both filters must be defined for a SELECT operation")
+
+        var_list = ctx.var()
+        graph = self.visitVar(var_list[-1])
+        nfa_dict = {
+            k: v for k, v in self.env.env[0].items() if isinstance(v, EpsilonNFA)
+        }
+
+        start_var = get_varname(var_list[-2])
+        final_var = get_varname(var_list[-3])
+        start_nodes = filter1[1] if start_var == filter1[0] else filter2[1]
+        final_nodes = filter2[1] if final_var == filter2[0] else filter1[1]
+
+        query = build_rsm(self._nfa_from_expr(ctx.expr()), nfa_dict)
+        result = tensor_based_cfpq(query, graph, start_nodes, final_nodes)
+
+        ret_var1 = var_list[0].getText()
+        ret_var2 = var_list[1].getText()
+        if ret_var1 == start_var and not ret_var2:
+            output = {res[0] for res in result}
+        elif ret_var1 == final_var and not ret_var2:
+            output = {res[1] for res in result}
+        else:
+            output = result
+
+        self._query_done = True
+        return output
 
     def _nfa_from_expr(self, ctx):
         val = self.visitExpr(ctx)

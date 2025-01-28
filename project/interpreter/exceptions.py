@@ -5,7 +5,7 @@ class InterpreterException(Exception):
 
 class VariableNotFoundException(InterpreterException):
     """
-    Raises if variable is not found in the Environment
+    Raises if variable is not found in the scope
     """
 
     def __init__(self, name: str):
