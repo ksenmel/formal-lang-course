@@ -18,4 +18,4 @@ class RemoveGlobalScopeException(InterpreterException):
     """
 
     def __init__(self):
-        self.msg = f"You can not remove the global scope"
+        self.msg = "You can not remove the global scope"
