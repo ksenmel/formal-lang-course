@@ -47,6 +47,7 @@ def check_type(expected, actual):
 class GQLInfer(GQLVisitor):
     def __init__(self):
         self.env = Env()
+        self.current_binding = None
 
     def visitProg(self, ctx):
         return self.visitChildren(ctx)
@@ -63,7 +64,10 @@ class GQLInfer(GQLVisitor):
 
     def visitBind(self, ctx):
         var_name = get_varname(ctx.var())
+        self.current_binding = var_name
+        
         expr_type = self.visitExpr(ctx.expr())
+        self.current_binding = None  # none after type definition
         self.env.add(var_name, expr_type)
 
     def visitRegexp(self, ctx):
@@ -81,9 +85,13 @@ class GQLInfer(GQLVisitor):
         return Types.INVALID
 
     def _handle_var(self, ctx):
+
         var_name = get_varname(ctx.var())
-        if not self.env.contain_variable(var_name):
+        if var_name == self.current_binding:
             return Types.RSM
+
+        if not self.env.contain_variable(var_name):
+            return Types.FA
 
         var_type = self.visitVar(ctx.var())
 
@@ -124,8 +132,8 @@ class GQLInfer(GQLVisitor):
         vars = ctx.var()
         in_var = vars[-1].getText()
 
-        check_type(Types.GRAPH, self.env.get(in_var))
-
+        check_type(Types.GRAPH, self.env.get(in_var))        
+        
         result_var2 = vars[1].getText() if ctx.COMMA() else None
 
         expr_type = self.visitExpr(ctx.expr())
@@ -199,3 +207,4 @@ class GQLInfer(GQLVisitor):
         if not self.env.contain_variable(var_name):
             raise VariableNotFoundException
         return self.env.get(var_name)
+    
