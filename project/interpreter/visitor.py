@@ -22,6 +22,26 @@ from project.interpreter.exceptions import (
 )
 
 
+class LazyNFA:
+    def __init__(self, ctx, name):
+        self.ctx = ctx
+        self.name = name
+        self._value = None
+        self._computing = False
+
+    def get_value(self, visitor):
+        if self._value is not None:
+            return self._value
+
+        if self._computing:
+            return nfa_from_var(self.name)
+
+        self._computing = True
+        self._value = visitor.visitExpr(self.ctx)
+        self._computing = False
+        return self._value
+
+
 class Env:
     def __init__(self):
         self.env = [{}]
@@ -81,16 +101,24 @@ class MyVisitor(GQLVisitor):
 
     def visitBind(self, ctx: GQLParser.BindContext):
         name = get_varname(ctx.var())
-        value = self.visitExpr(ctx.expr())
+        expr_ctx = ctx.expr()
 
-        if isinstance(value, str) and len(value) == 1:
-            value = nfa_from_char(value)
-
-        self.env.add(name, value)
+        if expr_ctx.regexp():
+            lazy_nfa = LazyNFA(expr_ctx, name)
+            self.env.add(name, lazy_nfa)
+        else:
+            value = self.visitExpr(expr_ctx)
+            if isinstance(value, str) and len(value) == 1:
+                value = nfa_from_char(value)
+            self.env.add(name, value)
 
         if self._query_done:
             self._query_done = False
-            self.query[name] = value
+            stored_value = self.env.find(name)
+            if isinstance(stored_value, LazyNFA):
+                self.query[name] = stored_value.get_value(self)
+            else:
+                self.query[name] = stored_value
 
     def visitRegexp(self, ctx: GQLParser.RegexpContext):
         if ctx.char():
@@ -107,7 +135,16 @@ class MyVisitor(GQLVisitor):
         return nfa_from_char(self.visitChar(ctx.char()))
 
     def _handle_var(self, ctx):
-        return nfa_from_var(ctx.var().getText())
+        var_name = ctx.var().getText()
+        try:
+            value = self.env.find(var_name)
+            if isinstance(value, LazyNFA):
+                return value.get_value(self)
+            elif isinstance(value, EpsilonNFA):
+                return value
+        except VariableNotFoundException:
+            pass
+        return nfa_from_var(var_name)
 
     def _handle_brackets(self, ctx):
         return group(self.visitRegexp(ctx.regexp(0)))
@@ -188,9 +225,13 @@ class MyVisitor(GQLVisitor):
 
         var_list = ctx.var()
         graph = self.visitVar(var_list[-1])
-        nfa_dict = {
-            k: v for k, v in self.env.env[0].items() if isinstance(v, EpsilonNFA)
-        }
+
+        nfa_dict = {}
+        for k, v in self.env.env[0].items():
+            if isinstance(v, LazyNFA):
+                nfa_dict[k] = v.get_value(self)
+            elif isinstance(v, EpsilonNFA):
+                nfa_dict[k] = v
 
         start_var = get_varname(var_list[-2])
         final_var = get_varname(var_list[-3])
@@ -214,6 +255,8 @@ class MyVisitor(GQLVisitor):
 
     def _nfa_from_expr(self, ctx):
         val = self.visitExpr(ctx)
+        if isinstance(val, LazyNFA):
+            return val.get_value(self)
         if isinstance(val, EpsilonNFA):
             return val
         if isinstance(val, str):

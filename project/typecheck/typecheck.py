@@ -67,7 +67,7 @@ class GQLInfer(GQLVisitor):
         self.current_binding = var_name
         
         expr_type = self.visitExpr(ctx.expr())
-        self.current_binding = None  # none after type definition
+        self.current_binding = None 
         self.env.add(var_name, expr_type)
 
     def visitRegexp(self, ctx):
