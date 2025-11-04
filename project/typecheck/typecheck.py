@@ -111,8 +111,9 @@ class GQLInfer(GQLVisitor):
     def visitRegexp_power(self, ctx):
         result_type = self.visitRegexp_primary(ctx.regexp_primary())
 
-        if ctx.CIRCUMFLEX():
-            range_type = self.visitRange(ctx.range_())
+        range_list = ctx.range_()
+        for range_ctx in range_list:
+            range_type = self.visitRange(range_ctx)
             check_type(Types.RANGE, range_type)
 
             if result_type not in [Types.FA, Types.RSM]:

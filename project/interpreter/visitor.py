@@ -153,8 +153,8 @@ class MyVisitor(GQLVisitor):
     def visitRegexp_power(self, ctx: GQLParser.Regexp_powerContext):
         result = self.visitRegexp_primary(ctx.regexp_primary())
 
-        if ctx.CIRCUMFLEX():
-            range_ctx = ctx.range_()
+        range_list = ctx.range_()
+        for range_ctx in range_list:
             range_ = self.visitRange(range_ctx)
             result = repeat_range(
                 result, self.visitNum(range_[0]), self.visitNum(range_[1])
