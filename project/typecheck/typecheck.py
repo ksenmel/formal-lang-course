@@ -4,7 +4,6 @@ from project.typecheck.exceptions import (
     InvalidType,
     TypeMismatch,
     VariableNotFoundException,
-    UnsupportedOperation,
     VariableAlreadyExists,
     UnsupportedConstruction,
 )
@@ -77,7 +76,9 @@ class GQLInfer(GQLVisitor):
 
         for i in range(1, len(regexp_and_list)):
             right_type = self.visitRegexp_and(regexp_and_list[i])
-            result_type = Types.RSM if Types.RSM in [result_type, right_type] else Types.FA
+            result_type = (
+                Types.RSM if Types.RSM in [result_type, right_type] else Types.FA
+            )
 
         return result_type
 
@@ -89,7 +90,9 @@ class GQLInfer(GQLVisitor):
             right_type = self.visitRegexp_concat(regexp_concat_list[i])
             if result_type == Types.RSM and right_type == Types.RSM:
                 raise Exception("Cannot intersect two RSMs")
-            result_type = Types.RSM if Types.RSM in [result_type, right_type] else Types.FA
+            result_type = (
+                Types.RSM if Types.RSM in [result_type, right_type] else Types.FA
+            )
 
         return result_type
 
@@ -99,7 +102,9 @@ class GQLInfer(GQLVisitor):
 
         for i in range(1, len(regexp_power_list)):
             right_type = self.visitRegexp_power(regexp_power_list[i])
-            result_type = Types.RSM if Types.RSM in [result_type, right_type] else Types.FA
+            result_type = (
+                Types.RSM if Types.RSM in [result_type, right_type] else Types.FA
+            )
 
         return result_type
 
@@ -133,7 +138,9 @@ class GQLInfer(GQLVisitor):
                 return Types.FA
             if var_type == Types.RSM:
                 return Types.RSM
-            raise Exception(f"Invalid type {var_type} for variable {var_name} in regexp")
+            raise Exception(
+                f"Invalid type {var_type} for variable {var_name} in regexp"
+            )
 
         if ctx.L_BR() and ctx.R_BR():
             return self.visitRegexp(ctx.regexp())

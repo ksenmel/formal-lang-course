@@ -156,7 +156,9 @@ class MyVisitor(GQLVisitor):
         if ctx.CIRCUMFLEX():
             range_ctx = ctx.range_()
             range_ = self.visitRange(range_ctx)
-            result = repeat_range(result, self.visitNum(range_[0]), self.visitNum(range_[1]))
+            result = repeat_range(
+                result, self.visitNum(range_[0]), self.visitNum(range_[1])
+            )
 
         return result
 
@@ -247,9 +249,9 @@ class MyVisitor(GQLVisitor):
             var_offset = 1
 
         # Get WHERE/FROM/IN variables
-        final_var = get_varname(var_list[var_offset])      # WHERE var
+        final_var = get_varname(var_list[var_offset])  # WHERE var
         start_var = get_varname(var_list[var_offset + 1])  # FROM var
-        graph_var = var_list[var_offset + 2]               # IN var
+        graph_var = var_list[var_offset + 2]  # IN var
         graph = self.visitVar(graph_var)
 
         # Build NFA dictionary for RSM
