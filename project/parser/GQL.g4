@@ -7,33 +7,41 @@ stmt: declare
     | add
     | remove;
 
-declare : LET VAR IS GRAPH ;
+declare : LET var IS GRAPH ;
 
-bind : LET VAR EQUAL expr ;
+bind : LET var EQUAL expr ;
 
-remove : REMOVE (VERTEX | EDGE | VERTICES) expr FROM VAR ;
+remove : REMOVE (VERTEX | EDGE | VERTICES) expr FROM var ;
 
-add : ADD (VERTEX | EDGE) expr TO VAR ;
+add : ADD (VERTEX | EDGE) expr TO var ;
 
-expr : NUM | CHAR | VAR | edge_expr | set_expr | regexp | select ;
+expr : num | char | var | edge_expr | set_expr | regexp | select ;
 
 set_expr : L_SQ_BR expr (COMMA expr)* R_SQ_BR ;
 
 edge_expr : L_BR expr COMMA expr COMMA expr R_BR ;
 
-regexp: term ('|' term)*;
+regexp: regexp_and (PIPE regexp_and)* ;
 
-term: factor (('.' | '&') factor)*;
+regexp_and: regexp_concat (AMPERSAND regexp_concat)* ;
 
-factor: primary ('^' range)*;
+regexp_concat: regexp_power (DOT regexp_power)* ;
 
-primary: CHAR | VAR | '(' regexp ')';
+regexp_power: regexp_primary (CIRCUMFLEX range)* ;
 
-range : L_SQ_BR NUM ELLIPSIS NUM? R_SQ_BR ;
+regexp_primary: char
+              | var
+              | L_BR regexp R_BR ;
 
-select : v_filter? v_filter? RETURN VAR (COMMA VAR)? WHERE VAR REACHABLE FROM VAR IN VAR BY expr ;
+range : L_SQ_BR num ELLIPSIS num? R_SQ_BR ;
 
-v_filter : FOR VAR IN expr ;
+select : v_filter* RETURN var (COMMA var)? WHERE var REACHABLE FROM var IN var BY expr ;
+
+v_filter : FOR var IN expr ;
+
+num: NUM ;
+char: CHAR;
+var: VAR ;
 
 LET:            'let' ;
 IS:             'is' ;

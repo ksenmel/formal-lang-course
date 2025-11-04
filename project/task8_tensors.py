@@ -22,13 +22,20 @@ def tensor_based_cfpq(
 
     initialize_graph_adj(graph_adj, rsm, graph_adj.number_of_states)
 
+    box_states_cache = {
+        nonterminal: (box.dfa.start_states, box.dfa.final_states)
+        for nonterminal, box in rsm.boxes.items()
+    }
+
     last_nnz, current_nnz = 0, None
 
     while current_nnz != last_nnz:
         intersection = intersect_automata(rsm_adj, graph_adj)
         transitive_closure = intersection.transitive_closure()
 
-        update_adjacency_matrix(transitive_closure, intersection, rsm, graph_adj)
+        update_adjacency_matrix(
+            transitive_closure, intersection, box_states_cache, graph_adj
+        )
 
         last_nnz = current_nnz
         current_nnz = sum(
@@ -54,26 +61,25 @@ def initialize_graph_adj(graph_adj, rsm, num_states):
             )
 
 
-def update_adjacency_matrix(transitive_closure, intersection, rsm, graph_adj):
+def update_adjacency_matrix(
+    transitive_closure, intersection, box_states_cache, graph_adj
+):
     for row_id, col_id in zip(*transitive_closure.nonzero()):
         row_state = intersection.index_state[row_id]
         col_state = intersection.index_state[col_id]
         (row_symbol, row_rsm_state), row_graph_state = row_state
         (col_symbol, col_rsm_state), col_graph_state = col_state
 
-        if is_valid_transition(
-            rsm, row_symbol, col_symbol, row_rsm_state, col_rsm_state
-        ):
-            row_graph_id = graph_adj.state_index[row_graph_state]
-            col_graph_id = graph_adj.state_index[col_graph_state]
-            graph_adj.adj_matrix[row_symbol][row_graph_id, col_graph_id] = True
+        if row_symbol != col_symbol:
+            continue
 
+        start_states, final_states = box_states_cache[row_symbol]
+        if row_rsm_state not in start_states or col_rsm_state not in final_states:
+            continue
 
-def is_valid_transition(rsm, row_symbol, col_symbol, row_rsm_state, col_rsm_state):
-    if row_symbol != col_symbol:
-        return False
-    dfa = rsm.boxes[row_symbol].dfa
-    return row_rsm_state in dfa.start_states and col_rsm_state in dfa.final_states
+        row_graph_id = graph_adj.state_index[row_graph_state]
+        col_graph_id = graph_adj.state_index[col_graph_state]
+        graph_adj.adj_matrix[row_symbol][row_graph_id, col_graph_id] = True
 
 
 def cfg_to_rsm(cfg: CFG) -> RecursiveAutomaton:
