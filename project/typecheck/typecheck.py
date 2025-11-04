@@ -70,70 +70,91 @@ class GQLInfer(GQLVisitor):
         self.current_binding = None
         self.env.add(var_name, expr_type)
 
+    # New regexp hierarchy methods for updated grammar
     def visitRegexp(self, ctx):
+        regexp_and_list = ctx.regexp_and()
+        result_type = self.visitRegexp_and(regexp_and_list[0])
+
+        for i in range(1, len(regexp_and_list)):
+            right_type = self.visitRegexp_and(regexp_and_list[i])
+            result_type = Types.RSM if Types.RSM in [result_type, right_type] else Types.FA
+
+        return result_type
+
+    def visitRegexp_and(self, ctx):
+        regexp_concat_list = ctx.regexp_concat()
+        result_type = self.visitRegexp_concat(regexp_concat_list[0])
+
+        for i in range(1, len(regexp_concat_list)):
+            right_type = self.visitRegexp_concat(regexp_concat_list[i])
+            if result_type == Types.RSM and right_type == Types.RSM:
+                raise Exception("Cannot intersect two RSMs")
+            result_type = Types.RSM if Types.RSM in [result_type, right_type] else Types.FA
+
+        return result_type
+
+    def visitRegexp_concat(self, ctx):
+        regexp_power_list = ctx.regexp_power()
+        result_type = self.visitRegexp_power(regexp_power_list[0])
+
+        for i in range(1, len(regexp_power_list)):
+            right_type = self.visitRegexp_power(regexp_power_list[i])
+            result_type = Types.RSM if Types.RSM in [result_type, right_type] else Types.FA
+
+        return result_type
+
+    def visitRegexp_power(self, ctx):
+        result_type = self.visitRegexp_primary(ctx.regexp_primary())
+
+        if ctx.CIRCUMFLEX():
+            range_type = self.visitRange(ctx.range_())
+            check_type(Types.RANGE, range_type)
+
+            if result_type not in [Types.FA, Types.RSM]:
+                raise Exception(f"Invalid type {result_type} for repeat operation")
+
+        return result_type
+
+    def visitRegexp_primary(self, ctx):
         if ctx.char():
             return Types.FA
+
         if ctx.var():
-            return self._handle_var(ctx)
+            var_name = get_varname(ctx.var())
+            if var_name == self.current_binding:
+                return Types.RSM
+
+            if not self.env.contain_variable(var_name):
+                return Types.FA
+
+            var_type = self.visitVar(ctx.var())
+
+            if var_type == Types.FA or var_type == Types.CHAR:
+                return Types.FA
+            if var_type == Types.RSM:
+                return Types.RSM
+            raise Exception(f"Invalid type {var_type} for variable {var_name} in regexp")
+
         if ctx.L_BR() and ctx.R_BR():
-            return self._handle_brackets(ctx)
-        if ctx.CIRCUMFLEX():
-            return self._handle_circumflex(ctx)
-        if ctx.PIPE() or ctx.DOT() or ctx.AMPERSAND():
-            return self._handle_binop(ctx)
+            return self.visitRegexp(ctx.regexp())
 
         return Types.INVALID
 
-    def _handle_var(self, ctx):
-        var_name = get_varname(ctx.var())
-        if var_name == self.current_binding:
-            return Types.RSM
-
-        if not self.env.contain_variable(var_name):
-            return Types.FA
-
-        var_type = self.visitVar(ctx.var())
-
-        if var_type == Types.FA or var_type == Types.CHAR:
-            return Types.FA
-        if var_type == Types.RSM:
-            return Types.RSM
-        raise Exception(f"Invalid type {var_type} for variable {var_name} in regexp")
-
-    def _handle_brackets(self, ctx):
-        return self.visitRegexp(ctx.regexp(0))
-
-    def _handle_circumflex(self, ctx):
-        left_type = self.visitRegexp(ctx.regexp(0))
-        range_type = self.visitRange(ctx.range_())
-        check_type(Types.RANGE, range_type)
-
-        if left_type not in [Types.FA, Types.RSM]:
-            raise Exception(f"Invalid type {left_type} for repeat operation")
-        return left_type
-
-    def _handle_binop(self, ctx):
-        left_type = self.visitRegexp(ctx.regexp(0))
-        right_type = self.visitRegexp(ctx.regexp(1))
-        if ctx.PIPE() or ctx.DOT():
-            return Types.RSM if Types.RSM in [left_type, right_type] else Types.FA
-        if ctx.AMPERSAND():
-            if left_type == Types.RSM and right_type == Types.RSM:
-                raise Exception("Cannot intersect two RSMs")
-            return Types.RSM if Types.RSM in [left_type, right_type] else Types.FA
-
-        raise UnsupportedOperation
-
     def visitSelect(self, ctx):
-        self.visitV_filter(ctx.v_filter(0))
-        self.visitV_filter(ctx.v_filter(1))
+        for i in range(len(ctx.v_filter())):
+            self.visitV_filter(ctx.v_filter(i))
 
         vars = ctx.var()
-        in_var = vars[-1].getText()
 
+        if ctx.COMMA():
+            result_var2 = vars[1].getText()
+            var_offset = 2
+        else:
+            result_var2 = None
+            var_offset = 1
+
+        in_var = vars[var_offset + 2].getText()
         check_type(Types.GRAPH, self.env.get(in_var))
-
-        result_var2 = vars[1].getText() if ctx.COMMA() else None
 
         expr_type = self.visitExpr(ctx.expr())
         if expr_type not in [Types.FA, Types.RSM, Types.CHAR]:

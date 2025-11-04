@@ -121,48 +121,60 @@ class MyVisitor(GQLVisitor):
                 self.query[name] = stored_value
 
     def visitRegexp(self, ctx: GQLParser.RegexpContext):
-        if ctx.char():
-            return self._handle_char(ctx)
-        if ctx.var():
-            return self._handle_var(ctx)
-        if ctx.L_BR() and ctx.R_BR():
-            return self._handle_brackets(ctx)
+        regexp_and_list = ctx.regexp_and()
+        result = self.visitRegexp_and(regexp_and_list[0])
+
+        for i in range(1, len(regexp_and_list)):
+            right = self.visitRegexp_and(regexp_and_list[i])
+            result = union(result, right)
+
+        return result
+
+    def visitRegexp_and(self, ctx: GQLParser.Regexp_andContext):
+        regexp_concat_list = ctx.regexp_concat()
+        result = self.visitRegexp_concat(regexp_concat_list[0])
+
+        for i in range(1, len(regexp_concat_list)):
+            right = self.visitRegexp_concat(regexp_concat_list[i])
+            result = intersect(result, right)
+
+        return result
+
+    def visitRegexp_concat(self, ctx: GQLParser.Regexp_concatContext):
+        regexp_power_list = ctx.regexp_power()
+        result = self.visitRegexp_power(regexp_power_list[0])
+
+        for i in range(1, len(regexp_power_list)):
+            right = self.visitRegexp_power(regexp_power_list[i])
+            result = concatenate(result, right)
+
+        return result
+
+    def visitRegexp_power(self, ctx: GQLParser.Regexp_powerContext):
+        result = self.visitRegexp_primary(ctx.regexp_primary())
+
         if ctx.CIRCUMFLEX():
-            return self._handle_circumflex(ctx)
-        return self._handle_binop(ctx)
+            range_ctx = ctx.range_()
+            range_ = self.visitRange(range_ctx)
+            result = repeat_range(result, self.visitNum(range_[0]), self.visitNum(range_[1]))
 
-    def _handle_char(self, ctx):
-        return nfa_from_char(self.visitChar(ctx.char()))
+        return result
 
-    def _handle_var(self, ctx):
-        var_name = ctx.var().getText()
-        try:
+    def visitRegexp_primary(self, ctx: GQLParser.Regexp_primaryContext):
+        if ctx.char():
+            return nfa_from_char(self.visitChar(ctx.char()))
+
+        if ctx.var():
+            var_name = ctx.var().getText()
             value = self.env.find(var_name)
             if isinstance(value, LazyNFA):
                 return value.get_value(self)
             elif isinstance(value, EpsilonNFA):
                 return value
-        except VariableNotFoundException:
-            pass
-        return nfa_from_var(var_name)
+            return nfa_from_var(var_name)
 
-    def _handle_brackets(self, ctx):
-        return group(self.visitRegexp(ctx.regexp(0)))
-
-    def _handle_circumflex(self, ctx):
-        left = self.visitRegexp(ctx.regexp(0))
-        range_ = self.visitRange(ctx.range_())
-        return repeat_range(left, self.visitNum(range_[0]), self.visitNum(range_[1]))
-
-    def _handle_binop(self, ctx):
-        left = self.visitRegexp(ctx.regexp(0))
-        right = self.visitRegexp(ctx.regexp(1))
-        if ctx.PIPE():
-            return union(left, right)
-        if ctx.DOT():
-            return concatenate(left, right)
-        if ctx.AMPERSAND():
-            return intersect(left, right)
+        if ctx.L_BR() and ctx.R_BR():
+            return group(self.visitRegexp(ctx.regexp()))
 
     def visitV_filter(self, ctx: GQLParser.V_filterContext):
         return ctx.var().getText(), self.visitExpr(ctx.expr())
@@ -217,15 +229,30 @@ class MyVisitor(GQLVisitor):
         return int(ctx.NUM().getText())
 
     def visitSelect(self, ctx: GQLParser.SelectContext):
-        filter1 = self.visitV_filter(ctx.v_filter(0))
-        filter2 = self.visitV_filter(ctx.v_filter(1))
+        # Process all v_filter (0 or more)
+        filters = []
+        for i in range(len(ctx.v_filter())):
+            filters.append(self.visitV_filter(ctx.v_filter(i)))
 
-        if not filter1 or not filter2:
-            raise Exception("Both filters must be defined for a SELECT operation")
-
+        # Parse: v_filter* RETURN var (COMMA var)? WHERE var REACHABLE FROM var IN var BY expr
         var_list = ctx.var()
-        graph = self.visitVar(var_list[-1])
 
+        # Get return variables (1 or 2)
+        return_vars = []
+        return_vars.append(get_varname(var_list[0]))
+        if len(var_list) > 4:  # Has second return variable
+            return_vars.append(get_varname(var_list[1]))
+            var_offset = 2
+        else:
+            var_offset = 1
+
+        # Get WHERE/FROM/IN variables
+        final_var = get_varname(var_list[var_offset])      # WHERE var
+        start_var = get_varname(var_list[var_offset + 1])  # FROM var
+        graph_var = var_list[var_offset + 2]               # IN var
+        graph = self.visitVar(graph_var)
+
+        # Build NFA dictionary for RSM
         nfa_dict = {}
         for k, v in self.env.env[0].items():
             if isinstance(v, LazyNFA):
@@ -233,16 +260,25 @@ class MyVisitor(GQLVisitor):
             elif isinstance(v, EpsilonNFA):
                 nfa_dict[k] = v
 
-        start_var = get_varname(var_list[-2])
-        final_var = get_varname(var_list[-3])
-        start_nodes = filter1[1] if start_var == filter1[0] else filter2[1]
-        final_nodes = filter2[1] if final_var == filter2[0] else filter1[1]
+        # Match filters to start/final variables
+        start_nodes = None
+        final_nodes = None
 
+        filter_dict = {f[0]: f[1] for f in filters}
+
+        if start_var in filter_dict:
+            start_nodes = filter_dict[start_var]
+        if final_var in filter_dict:
+            final_nodes = filter_dict[final_var]
+
+        # Execute query
         query = build_rsm(self._nfa_from_expr(ctx.expr()), nfa_dict)
         result = tensor_based_cfpq(query, graph, start_nodes, final_nodes)
 
-        ret_var1 = var_list[0].getText()
-        ret_var2 = var_list[1].getText()
+        # Format output based on return variables
+        ret_var1 = return_vars[0]
+        ret_var2 = return_vars[1] if len(return_vars) > 1 else None
+
         if ret_var1 == start_var and not ret_var2:
             output = {res[0] for res in result}
         elif ret_var1 == final_var and not ret_var2:

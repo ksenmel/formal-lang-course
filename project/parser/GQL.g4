@@ -21,17 +21,21 @@ set_expr : L_SQ_BR expr (COMMA expr)* R_SQ_BR ;
 
 edge_expr : L_BR expr COMMA expr COMMA expr R_BR ;
 
-regexp: char
-        | var
-        | L_BR regexp R_BR
-        | regexp CIRCUMFLEX range
-        | regexp DOT regexp
-        | regexp PIPE regexp
-        | regexp AMPERSAND regexp;
+regexp: regexp_and (PIPE regexp_and)* ;
+
+regexp_and: regexp_concat (AMPERSAND regexp_concat)* ;
+
+regexp_concat: regexp_power (DOT regexp_power)* ;
+
+regexp_power: regexp_primary (CIRCUMFLEX range)? ;
+
+regexp_primary: char
+              | var
+              | L_BR regexp R_BR ;
 
 range : L_SQ_BR num ELLIPSIS num? R_SQ_BR ;
 
-select : v_filter? v_filter? RETURN var (COMMA var)? WHERE var REACHABLE FROM var IN var BY expr ;
+select : v_filter* RETURN var (COMMA var)? WHERE var REACHABLE FROM var IN var BY expr ;
 
 v_filter : FOR var IN expr ;
 
