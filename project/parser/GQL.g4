@@ -27,7 +27,7 @@ regexp_and: regexp_concat (AMPERSAND regexp_concat)* ;
 
 regexp_concat: regexp_power (DOT regexp_power)* ;
 
-regexp_power: regexp_primary (CIRCUMFLEX range)? ;
+regexp_power: regexp_primary (CIRCUMFLEX range)* ;
 
 regexp_primary: char
               | var
