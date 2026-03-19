@@ -60,10 +60,21 @@ class AdjacencyMatrixFA:
         reach = self.sparse_format((self.number_of_states, self.number_of_states), dtype=bool)
         for matrix in self.adj_matrix.values():
             reach += matrix
-        dist_matrix = csgraph.floyd_warshall(reach, directed=True, unweighted=True)
-        reach_matrix = dist_matrix < np.inf
-
-        return reach_matrix
+        
+        result = reach.copy()
+        result.setdiag(True)
+        
+        prev_nnz = 0
+        current_nnz = result.nnz
+        
+        while current_nnz != prev_nnz:
+            prev_nnz = current_nnz
+            result = result * result
+            result = result > 0
+            result.setdiag(True)
+            current_nnz = result.nnz
+    
+        return result
 
     def is_empty(self) -> bool:
         tc = self.transitive_closure()
