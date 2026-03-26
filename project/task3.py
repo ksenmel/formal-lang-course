@@ -9,7 +9,11 @@ from project.task2_fa import NondeterministicFiniteAutomaton, regex_to_dfa, grap
 
 
 class AdjacencyMatrixFA:
-    def __init__(self, fa: NondeterministicFiniteAutomaton):
+    def __init__(
+        self,
+        fa: NondeterministicFiniteAutomaton,
+        sparse_format: Type[sp.spmatrix] = sp.lil_matrix,
+    ):
         graph = fa.to_networkx()
         self.state_index = {state: idx for idx, state in enumerate(graph.nodes)}
         self.index_state = {idx: state for state, idx in self.state_index.items()}
@@ -18,7 +22,7 @@ class AdjacencyMatrixFA:
         self.number_of_states = graph.number_of_nodes()
 
         self.adj_matrix = {}
-        self.sparse_format = sp.lil_matrix
+        self.sparse_format = sparse_format
 
         for sym in fa.symbols:
             self.adj_matrix[sym] = self.sparse_format(
@@ -90,7 +94,7 @@ def intersect_automata(
     mfa2: AdjacencyMatrixFA,
     sparse_format: Type[sp.spmatrix] = sp.lil_matrix,
 ) -> AdjacencyMatrixFA:
-    intersection = AdjacencyMatrixFA(NondeterministicFiniteAutomaton())
+    intersection = AdjacencyMatrixFA(NondeterministicFiniteAutomaton(), sparse_format)
 
     intersection.number_of_states = mfa1.number_of_states * mfa2.number_of_states
 
@@ -146,9 +150,11 @@ def tensor_based_rpq(
     start_nodes = start_nodes or all_nodes
     final_nodes = final_nodes or all_nodes
 
-    graph_mfa = AdjacencyMatrixFA(graph_to_nfa(graph, start_nodes, final_nodes))
+    graph_mfa = AdjacencyMatrixFA(
+        graph_to_nfa(graph, start_nodes, final_nodes), sparse_format
+    )
     regex_dfa = regex_to_dfa(regex)
-    regex_mfa = AdjacencyMatrixFA(regex_dfa)
+    regex_mfa = AdjacencyMatrixFA(regex_dfa, sparse_format)
 
     intersection_mfa = intersect_automata(graph_mfa, regex_mfa, sparse_format)
     tc = intersection_mfa.transitive_closure()
