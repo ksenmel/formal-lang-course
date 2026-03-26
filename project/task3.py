@@ -1,8 +1,7 @@
 from networkx import MultiDiGraph
 from pyformlang.finite_automaton import Symbol
 from typing import Iterable
-from scipy.sparse import csr_matrix, kron, csgraph
-import numpy as np
+from scipy.sparse import kron
 from typing import Type
 import scipy.sparse as sp
 
@@ -10,9 +9,11 @@ from project.task2_fa import NondeterministicFiniteAutomaton, regex_to_dfa, grap
 
 
 class AdjacencyMatrixFA:
-    def __init__(self, 
-                 fa: NondeterministicFiniteAutomaton, 
-                 sparse_format: Type[sp.spmatrix] = sp.lil_matrix):
+    def __init__(
+        self,
+        fa: NondeterministicFiniteAutomaton,
+        sparse_format: Type[sp.spmatrix] = sp.lil_matrix,
+    ):
         graph = fa.to_networkx()
         self.state_index = {state: idx for idx, state in enumerate(graph.nodes)}
         self.index_state = {idx: state for state, idx in self.state_index.items()}
@@ -57,23 +58,25 @@ class AdjacencyMatrixFA:
         if not self.adj_matrix:
             return init_matrix
 
-        reach = self.sparse_format((self.number_of_states, self.number_of_states), dtype=bool)
+        reach = self.sparse_format(
+            (self.number_of_states, self.number_of_states), dtype=bool
+        )
         for matrix in self.adj_matrix.values():
             reach += matrix
-        
+
         result = reach.copy()
         result.setdiag(True)
-        
+
         prev_nnz = 0
         current_nnz = result.nnz
-        
+
         while current_nnz != prev_nnz:
             prev_nnz = current_nnz
             result = result * result
             result = result > 0
             result.setdiag(True)
             current_nnz = result.nnz
-    
+
         return result
 
     def is_empty(self) -> bool:
@@ -87,7 +90,7 @@ class AdjacencyMatrixFA:
 
 
 def intersect_automata(
-    mfa1: AdjacencyMatrixFA, 
+    mfa1: AdjacencyMatrixFA,
     mfa2: AdjacencyMatrixFA,
     sparse_format: Type[sp.spmatrix] = sp.lil_matrix,
 ) -> AdjacencyMatrixFA:
@@ -129,27 +132,31 @@ def intersect_automata(
             continue
 
         adj2 = mfa2.adj_matrix[sym]
-        intersection.adj_matrix[sym] = kron(adj1, adj2, format=sparse_format([[]]).getformat())
+        intersection.adj_matrix[sym] = kron(
+            adj1, adj2, format=sparse_format([[]]).getformat()
+        )
 
     return intersection
 
 
 def tensor_based_rpq(
-    regex: str, 
-    graph: MultiDiGraph, 
-    start_nodes: set[int], 
-    final_nodes: set[int], 
+    regex: str,
+    graph: MultiDiGraph,
+    start_nodes: set[int],
+    final_nodes: set[int],
     sparse_format: Type[sp.spmatrix] = sp.lil_matrix,
 ) -> set[tuple[int, int]]:
     all_nodes = {int(n) for n in graph.nodes}
     start_nodes = start_nodes or all_nodes
     final_nodes = final_nodes or all_nodes
 
-    graph_mfa = AdjacencyMatrixFA(graph_to_nfa(graph, start_nodes, final_nodes), sparse_format)
+    graph_mfa = AdjacencyMatrixFA(
+        graph_to_nfa(graph, start_nodes, final_nodes), sparse_format
+    )
     regex_dfa = regex_to_dfa(regex)
     regex_mfa = AdjacencyMatrixFA(regex_dfa, sparse_format)
 
-    intersection_mfa = intersect_automata(graph_mfa, regex_mfa)
+    intersection_mfa = intersect_automata(graph_mfa, regex_mfa, sparse_format)
     tc = intersection_mfa.transitive_closure()
 
     result = set()

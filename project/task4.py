@@ -1,7 +1,7 @@
 from functools import reduce
 from itertools import product
 from networkx import MultiDiGraph
-from scipy.sparse import vstack, csr_matrix
+from scipy.sparse import vstack
 from typing import Type
 import scipy.sparse as sp
 
@@ -10,14 +10,16 @@ from project.task3 import AdjacencyMatrixFA
 
 
 def ms_bfs_based_rpq(
-    regex: str, 
-    graph: MultiDiGraph, 
-    start_nodes: set[int], 
+    regex: str,
+    graph: MultiDiGraph,
+    start_nodes: set[int],
     final_nodes: set[int],
-    sparse_format: Type[sp.spmatrix] = sp.lil_matrix) -> set[tuple[int, int]]:
-    
+    sparse_format: Type[sp.spmatrix] = sp.lil_matrix,
+) -> set[tuple[int, int]]:
     dfa_adj_matrix = AdjacencyMatrixFA(regex_to_dfa(regex), sparse_format)
-    nfa_adj_matrix = AdjacencyMatrixFA(graph_to_nfa(graph, start_nodes, final_nodes), sparse_format)
+    nfa_adj_matrix = AdjacencyMatrixFA(
+        graph_to_nfa(graph, start_nodes, final_nodes), sparse_format
+    )
 
     nfa_st_ids = {i: state for i, state in enumerate(nfa_adj_matrix.state_index)}
 
