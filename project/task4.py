@@ -16,6 +16,10 @@ def ms_bfs_based_rpq(
     final_nodes: set[int],
     sparse_format: Type[sp.spmatrix] = sp.lil_matrix,
 ) -> set[tuple[int, int]]:
+    all_nodes = {int(n) for n in graph.nodes}
+    start_nodes = start_nodes or all_nodes
+    final_nodes = final_nodes or all_nodes
+
     dfa_adj_matrix = AdjacencyMatrixFA(regex_to_dfa(regex), sparse_format)
     nfa_adj_matrix = AdjacencyMatrixFA(
         graph_to_nfa(graph, start_nodes, final_nodes), sparse_format
